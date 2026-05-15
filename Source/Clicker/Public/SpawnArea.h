@@ -24,17 +24,32 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Spawning")
 	class UBoxComponent* SpawnRegion;
 
-	/** The class of the actor to spawn */
+	/** The static mesh to spawn if using SpawnNextActorWithMesh */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawning")
-	TSubclassOf<AActor> ActorToSpawn;
+	TObjectPtr<UStaticMesh> MeshToSpawn;
 
-	/** Additional padding between actors in the grid */
+	/** Fixed spacing between grid cells */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawning")
-	float SpacingPadding = 0.0f;
+	float GridStepSize = 200.0f;
+
+	/** Current indices in the grid for manual spawning */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Spawning|Progress")
+	int32 CurrentGridX = 0;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Spawning|Progress")
+	int32 CurrentGridY = 0;
 
 	/** Calculates the grid and spawns actors to fill the area densely */
 	UFUNCTION(BlueprintCallable, Category = "Spawning")
 	void SpawnDenseActors();
+
+	/** Spawns the next actor as a StaticMeshActor with the specified mesh */
+	UFUNCTION(BlueprintCallable, Category = "Spawning")
+	bool SpawnNextActorWithMesh(UStaticMesh* InMesh = nullptr);
+
+	/** Resets the spawning progress to the start of the area */
+	UFUNCTION(BlueprintCallable, Category = "Spawning")
+	void ResetSpawnProgress();
 
 public:
 	// Called every frame
