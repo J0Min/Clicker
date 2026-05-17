@@ -38,72 +38,85 @@ void ASpawnArea::ResetSpawnProgress()
 	CurrentGridY = 0;
 	UE_LOG(LogTemp, Display, TEXT("SpawnArea: Progress reset."));
 }
-
 bool ASpawnArea::SpawnNextActorWithMesh(UStaticMesh* InMesh)
 {
-	UStaticMesh* MeshToUse = InMesh ? InMesh : MeshToSpawn.Get();
+    UStaticMesh* MeshToUse = InMesh ? InMesh : MeshToSpawn.Get();
 
-	if (!MeshToUse)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("SpawnArea: No mesh provided for spawning."));
-		return false;
-	}
+    if (!MeshToUse)
+    {
+       UE_LOG(LogTemp, Warning, TEXT("SpawnArea: No mesh provided for spawning."));
+       return false;
+    }
 
-	UWorld* World = GetWorld();
-	if (!World) return false;
+    UWorld* World = GetWorld();
+    if (!World) return false;
 
-	// 1. Get dimensions
-	FVector BoxExtent = SpawnRegion->GetScaledBoxExtent();
-	FVector BoxOrigin = GetActorLocation();
+    // 1. Get dimensions
+    FVector BoxExtent = SpawnRegion->GetScaledBoxExtent();
+    FVector BoxOrigin = GetActorLocation();
 
-	// 2. Fixed spacing logic
-	float StepX = GridStepSize;
-	float StepY = GridStepSize;
+    // 2. Fixed spacing logic
+    float StepX = GridStepSize;
+    float StepY = GridStepSize;
 
-	if (StepX <= 0.0f) StepX = 100.0f;
-	if (StepY <= 0.0f) StepY = 100.0f;
+    if (StepX <= 0.0f) StepX = 100.0f;
+    if (StepY <= 0.0f) StepY = 100.0f;
 
-	// 3. Calculate max counts based on Box Extent
-	// We use StepX/2 as a small offset to keep things within bounds
-	int32 MaxX = FMath::FloorToInt((BoxExtent.X * 2.0f) / StepX) - 1;
-	int32 MaxY = FMath::FloorToInt((BoxExtent.Y * 2.0f) / StepY) - 1;
+    // 3. Calculate max counts based on Box Extent
+    int32 MaxX = FMath::FloorToInt((BoxExtent.X * 2.0f) / StepX) - 1;
+    int32 MaxY = FMath::FloorToInt((BoxExtent.Y * 2.0f) / StepY) - 1;
 
-	if (CurrentGridY > MaxY)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("SpawnArea: Area is already full."));
-		return false;
-	}
+    if (CurrentGridY > MaxY)
+    {
+       UE_LOG(LogTemp, Warning, TEXT("SpawnArea: Area is already full. (X: %d, Y: %d)"), CurrentGridX, CurrentGridY);
+       return false;
+    }
 
-	// 4. Calculate Location (Centered within the box relative to top-left/bottom-left)
-	// Start from the corner and move by half-step to center the first cell
-	FVector StartPos = BoxOrigin - BoxExtent + FVector(StepX * 0.5f, StepY * 0.5f, BoxExtent.Z);
-	FVector SpawnLocation = StartPos + FVector(CurrentGridX * StepX, CurrentGridY * StepY, 0.0f);
-	FRotator SpawnRotation = GetActorRotation();
+    // 4. Calculate Location (Centered within the box relative to top-left/bottom-left)
+    FVector StartPos = BoxOrigin - BoxExtent + FVector(StepX * 0.5f, StepY * 0.5f, BoxExtent.Z);
+    FVector SpawnLocation = StartPos + FVector(CurrentGridX * StepX, CurrentGridY * StepY, 0.0f);
+    FRotator SpawnRotation = GetActorRotation();
 
-	// 5. Spawn StaticMeshActor
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.Owner = this;
-	SpawnParams.Instigator = GetInstigator();
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+    // 5. Spawn StaticMeshActor
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.Owner = this;
+    SpawnParams.Instigator = GetInstigator();
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
-	AStaticMeshActor* NewActor = World->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), SpawnLocation, SpawnRotation, SpawnParams);
+    AStaticMeshActor* NewActor = World->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), SpawnLocation, SpawnRotation, SpawnParams);
 
-	if (NewActor)
-	{
-		NewActor->GetStaticMeshComponent()->SetStaticMesh(MeshToUse);
-		NewActor->SetMobility(EComponentMobility::Movable);
+    if (NewActor)
+    {
+       // [수정 및 보강] 컴포넌트를 안전하게 가져온 뒤 모빌리티 -> 메시 순으로 설정합니다.
+       if (UStaticMeshComponent* MeshComp = NewActor->GetStaticMeshComponent())
+       {
+          // 1) 움직일 수 있는 상태(Movable)로 먼저 변경
+          MeshComp->SetMobility(EComponentMobility::Movable);
+          
+          // 2) 그 후에 메시를 변경 (에러 방지)
+          MeshComp->SetStaticMesh(MeshToUse);
+       }
 
-		// 6. Increment indices
-		CurrentGridX++;
-		if (CurrentGridX > MaxX)
-		{
-			CurrentGridX = 0;
-			CurrentGridY++;
-		}
-		return true;
-	}
+       UE_LOG(LogTemp, Display, TEXT("SpawnArea: Actor spawned at Grid[%d, %d]"), CurrentGridX, CurrentGridY);
 
-	return false;
+       // 6. Increment indices
+       CurrentGridX++;
+       if (CurrentGridX > MaxX)
+       {
+          CurrentGridX = 0;
+          CurrentGridY++;
+       }
+
+       // Check if it's now full
+       if (CurrentGridY > MaxY)
+       {
+          UE_LOG(LogTemp, Display, TEXT("SpawnArea: Area is NOW FULL!"));
+       }
+
+       return true;
+    }
+
+    return false;
 }
 
 void ASpawnArea::SpawnDenseActors()
@@ -129,6 +142,7 @@ void ASpawnArea::SpawnDenseActors()
 
 	FVector StartPos = BoxOrigin - BoxExtent + FVector(StepX * 0.5f, StepY * 0.5f, BoxExtent.Z);
 
+	int32 SpawnCount = 0;
 	for (float x = 0; x <= (BoxExtent.X * 2.0f) - StepX; x += StepX)
 	{
 		for (float y = 0; y <= (BoxExtent.Y * 2.0f) - StepY; y += StepY)
@@ -146,7 +160,10 @@ void ASpawnArea::SpawnDenseActors()
 			{
 				NewActor->GetStaticMeshComponent()->SetStaticMesh(MeshToUse);
 				NewActor->SetMobility(EComponentMobility::Movable);
+				SpawnCount++;
 			}
 		}
 	}
+
+	UE_LOG(LogTemp, Display, TEXT("SpawnArea: Dense Spawning complete. Total Actors: %d. Area is NOW FULL!"), SpawnCount);
 }

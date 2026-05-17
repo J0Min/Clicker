@@ -48,8 +48,6 @@ ACustomPawn::ACustomPawn()
 void ACustomPawn::BeginPlay()
 {
 	Super::BeginPlay();    
-	UE_LOG(LogTemp, Warning, TEXT("HEEEEll"));
-
 
 	// Add Input Mapping Context
 	if (APlayerController* PC = Cast<APlayerController>(Controller))
@@ -133,8 +131,6 @@ void ACustomPawn::Move(const FInputActionValue& Value)
 void ACustomPawn::Look(const FInputActionValue& Value)
 {
 	FVector2D LookAxisVector = Value.Get<FVector2D>();
-	UE_LOG(LogTemp, Warning, TEXT("Look Input: X=%f, Y=%f"), LookAxisVector.X, LookAxisVector.Y);
-
 
 	if (Controller != nullptr)
 	{
