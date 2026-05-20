@@ -6,6 +6,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
 #include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetMathLibrary.h"
 
 // Sets default values
 AStarBase::AStarBase()
@@ -14,21 +15,83 @@ AStarBase::AStarBase()
 
 	BoxCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxCollision"));
 	RootComponent = BoxCollision;
-	
+
 	BoxCollision->SetBoxExtent(FVector(500.f, 500.f, 500.f));
 	BoxCollision->SetCollisionProfileName(TEXT("OverlapAllDynamic"));
 
 	BaseMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BaseMesh"));
 	BaseMesh->SetupAttachment(RootComponent);
-	
+
 	// 외형 메쉬가 파편의 스폰과 비산을 방해하지 않도록 콜리전을 비활성화합니다.
-	//BaseMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	BaseMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 void AStarBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// 초기 설정값으로 주변 액터 배치
+	if (PeripheralActorClass)
+	{
+		ClearAndSpawn(Radius, SpawnCount, PeripheralActorClass);
+	}
 }
+
+void AStarBase::ClearAndSpawn(float InRadius, int32 InSpawnCount, TSubclassOf<AActor> InActorClass)
+{
+	UWorld* World = GetWorld();
+	TSubclassOf<AActor> FinalClass = InActorClass ? InActorClass : PeripheralActorClass;
+
+	if (!World || !FinalClass) return;
+
+	// 1. 기존 액터 제거
+	ClearSpawnedActors();
+
+	// 2. 새로운 액터 배치
+	for (int32 i = 0; i < InSpawnCount; ++i)
+	{
+		float Angle = (360.0f / InSpawnCount) * i;
+		float AngleRad = FMath::DegreesToRadians(Angle);
+
+		FVector RelativeLocation = FVector(
+			FMath::Cos(AngleRad) * InRadius,
+			FMath::Sin(AngleRad) * InRadius,
+			0.0f
+		);
+
+		FVector SpawnLocation = GetActorLocation() + RelativeLocation;
+
+		// 중앙을 바라보는 회전값 계산
+		FRotator LookAtRot = UKismetMathLibrary::FindLookAtRotation(SpawnLocation, GetActorLocation());
+		LookAtRot += RotationOffset;
+
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = this;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+		if (AActor* NewActor = World->SpawnActor<AActor>(FinalClass, SpawnLocation, LookAtRot, SpawnParams))
+		{
+			// StarBase와의 충돌 무시
+			if (BoxCollision) BoxCollision->IgnoreActorWhenMoving(NewActor, true);
+			if (BaseMesh) BaseMesh->IgnoreActorWhenMoving(NewActor, true);
+
+			SpawnedActors.Add(NewActor);
+		}
+	}
+}
+
+void AStarBase::ClearSpawnedActors()
+{
+	for (AActor* Actor : SpawnedActors)
+	{
+		if (Actor)
+		{
+			Actor->Destroy();
+		}
+	}
+	SpawnedActors.Empty();
+}
+
 
 void AStarBase::TriggerRadialSpawn(FVector HitLocation, FVector HitNormal, TSubclassOf<AActor> ActorClass, int32 ActorCount, UNiagaraSystem* Effect, float ImpulseStrength, float InLaunchAngle)
 {
