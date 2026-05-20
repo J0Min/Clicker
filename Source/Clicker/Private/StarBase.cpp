@@ -22,7 +22,7 @@ AStarBase::AStarBase()
 	BaseMesh->SetupAttachment(RootComponent);
 	
 	// 외형 메쉬가 파편의 스폰과 비산을 방해하지 않도록 콜리전을 비활성화합니다.
-	BaseMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	//BaseMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 void AStarBase::BeginPlay()
