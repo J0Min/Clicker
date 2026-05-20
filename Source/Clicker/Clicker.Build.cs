@@ -24,13 +24,7 @@ public class Clicker : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[] { });
 
 		PublicIncludePaths.AddRange(new string[] {
-			"Clicker",
-			"Clicker/Variant_Horror",
-			"Clicker/Variant_Horror/UI",
-			"Clicker/Variant_Shooter",
-			"Clicker/Variant_Shooter/AI",
-			"Clicker/Variant_Shooter/UI",
-			"Clicker/Variant_Shooter/Weapons"
+			"Clicker"
 		});
 
 		// Uncomment if you are using Slate UI
