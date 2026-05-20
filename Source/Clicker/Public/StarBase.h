@@ -43,7 +43,8 @@ public:
 		TSubclassOf<AActor> ActorClass, 
 		int32 ActorCount, 
 		UNiagaraSystem* Effect, 
-		float ImpulseStrength = 1500.f
+		float ImpulseStrength = 1500.f,
+		float InLaunchAngle = 45.f
 	);
 
 	/** 파편 비산 각도 (법선 기준, 기본 45도) */

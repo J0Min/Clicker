@@ -30,7 +30,7 @@ void AStarBase::BeginPlay()
 	Super::BeginPlay();
 }
 
-void AStarBase::TriggerRadialSpawn(FVector HitLocation, FVector HitNormal, TSubclassOf<AActor> ActorClass, int32 ActorCount, UNiagaraSystem* Effect, float ImpulseStrength)
+void AStarBase::TriggerRadialSpawn(FVector HitLocation, FVector HitNormal, TSubclassOf<AActor> ActorClass, int32 ActorCount, UNiagaraSystem* Effect, float ImpulseStrength, float InLaunchAngle)
 {
 	UWorld* World = GetWorld();
 	if (!World || !ActorClass) return;
@@ -46,36 +46,39 @@ void AStarBase::TriggerRadialSpawn(FVector HitLocation, FVector HitNormal, TSubc
 	{
 		HitNormal = FVector::UpVector;
 	}
+// 3. 법선에 수직인 기준 축(Tangent) 계산
+FVector TangentX, TangentY;
+HitNormal.FindBestAxisVectors(TangentX, TangentY);
 
-	// 3. 법선에 수직인 기준 축(Tangent) 계산
-	FVector TangentX, TangentY;
-	HitNormal.FindBestAxisVectors(TangentX, TangentY);
+// 시작 각도를 무작위로 설정하여 1개만 생성해도 매번 다른 방향으로 튀게 함
+float BaseRandomRotation = FMath::FRandRange(0.0f, 360.0f);
 
-	for (int32 i = 0; i < ActorCount; ++i)
+for (int32 i = 0; i < ActorCount; ++i)
+{
+	// 겹침 방지를 위해 표면에서 아주 살짝 띄움
+	FVector SpawnLocation = HitLocation + (HitNormal * 5.0f);
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = this;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	if (AActor* SpawnedActor = World->SpawnActor<AActor>(ActorClass, SpawnLocation, FRotator::ZeroRotator, SpawnParams))
 	{
-		// 겹침 방지를 위해 표면에서 아주 살짝 띄움
-		FVector SpawnLocation = HitLocation + (HitNormal * 5.0f);
-		
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.Owner = this;
-		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		// StarBase 컴포넌트들과의 충돌 무시 설정
+		if (BoxCollision) BoxCollision->IgnoreActorWhenMoving(SpawnedActor, true);
+		if (BaseMesh) BaseMesh->IgnoreActorWhenMoving(SpawnedActor, true);
 
-		if (AActor* SpawnedActor = World->SpawnActor<AActor>(ActorClass, SpawnLocation, FRotator::ZeroRotator, SpawnParams))
-		{
-			// StarBase 컴포넌트들과의 충돌 무시 설정
-			if (BoxCollision) BoxCollision->IgnoreActorWhenMoving(SpawnedActor, true);
-			if (BaseMesh) BaseMesh->IgnoreActorWhenMoving(SpawnedActor, true);
+		// --- 방사형 벡터 계산 ---
+		// 1. 법선을 매개변수로 받은 InLaunchAngle만큼 기울임 (TangentX를 축으로 회전)
+		FVector LaunchDirection = HitNormal.RotateAngleAxis(InLaunchAngle, TangentX);
 
-			// --- 방사형 벡터 계산 ---
-			// 1. 법선을 LaunchAngle(기본 45도)만큼 기울임 (TangentX를 축으로 회전)
-			FVector LaunchDirection = HitNormal.RotateAngleAxis(LaunchAngle, TangentX);
-			
-			// 2. 기울어진 벡터를 법선(HitNormal) 축을 중심으로 360도 무작위/균등 회전
-			// (균등하게 퍼뜨리기 위해 i / ActorCount 사용 가능하지만, 팡 터지는 느낌을 위해 무작위성 추가)
-			float RandomRotation = (360.0f / ActorCount) * i + FMath::FRandRange(-5.0f, 5.0f);
-			LaunchDirection = LaunchDirection.RotateAngleAxis(RandomRotation, HitNormal);
+		// 2. 기울어진 벡터를 법선(HitNormal) 축을 중심으로 360도 회전
+		// BaseRandomRotation을 더해 시작 위치를 무작위화함
+		float CurrentRotation = BaseRandomRotation + (360.0f / ActorCount) * i;
+		LaunchDirection = LaunchDirection.RotateAngleAxis(CurrentRotation, HitNormal);
 
-			FVector FinalImpulse = LaunchDirection * ImpulseStrength;
+		FVector FinalImpulse = LaunchDirection * ImpulseStrength;
+
 			// 약간의 힘 차이 부여
 			FinalImpulse *= FMath::FRandRange(0.8f, 1.2f);
 
