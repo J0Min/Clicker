@@ -48,7 +48,7 @@ public:
 
 	/** 주변 액터들을 원형으로 배치하는 함수 (지속적 배치) */
 	UFUNCTION(BlueprintCallable, Category = "StarBase|Events")
-	void ClearAndSpawn(float InRadius = 300.f, int32 InSpawnCount = 5, TSubclassOf<AActor> InActorClass = nullptr);
+	void ClearAndSpawn(float InRadius = 300.f, int32 InSpawnCount = 5, TSubclassOf<AActor> InActorClass = nullptr, FRotator InRotationOffset = FRotator::ZeroRotator);
 
 	/** 파편 비산 각도 (법선 기준, 기본 45도) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "StarBase|Physics")

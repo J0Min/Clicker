@@ -33,11 +33,11 @@ void AStarBase::BeginPlay()
 	// 초기 설정값으로 주변 액터 배치
 	if (PeripheralActorClass)
 	{
-		ClearAndSpawn(Radius, SpawnCount, PeripheralActorClass);
+		ClearAndSpawn(Radius, SpawnCount, PeripheralActorClass, RotationOffset);
 	}
 }
 
-void AStarBase::ClearAndSpawn(float InRadius, int32 InSpawnCount, TSubclassOf<AActor> InActorClass)
+void AStarBase::ClearAndSpawn(float InRadius, int32 InSpawnCount, TSubclassOf<AActor> InActorClass, FRotator InRotationOffset)
 {
 	UWorld* World = GetWorld();
 	TSubclassOf<AActor> FinalClass = InActorClass ? InActorClass : PeripheralActorClass;
@@ -63,7 +63,7 @@ void AStarBase::ClearAndSpawn(float InRadius, int32 InSpawnCount, TSubclassOf<AA
 
 		// 중앙을 바라보는 회전값 계산
 		FRotator LookAtRot = UKismetMathLibrary::FindLookAtRotation(SpawnLocation, GetActorLocation());
-		LookAtRot += RotationOffset;
+		LookAtRot += InRotationOffset;
 
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.Owner = this;
